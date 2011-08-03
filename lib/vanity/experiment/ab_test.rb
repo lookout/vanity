@@ -279,6 +279,18 @@ module Vanity
         end
       end
 
+      # True if this experiment has been selected for the current id (see #chooses).
+      def chosen?
+        # True if experiment is active and a value has been chosen for current identity
+        !!if @playground.collecting? # return a boolean value
+          active? && (connection.ab_showing(@id, identity()) ||
+                      connection.ab_chosen(@id, identity()))
+                  # TODO: implement ab_chosen on all vanity adapters!!
+        else
+          @showing && @showing[identity()]
+        end
+      end
+
 
       # -- Reporting --
 
