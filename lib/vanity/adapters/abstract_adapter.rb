@@ -110,6 +110,11 @@ module Vanity
         fail "Not implemented"
       end
 
+      # Indicates which alternative has been picked for this participant. See #ab_add_participant.
+      def ab_chosen(experiment, identity)
+        false # TODO: default to false for now; should add to each adapter
+      end
+
       # Records a conversion in this experiment for the given alternative.
       # Associates a value with the conversion (default to 1). If implicit is
       # true, add particpant if not already recorded for this experiment. If
