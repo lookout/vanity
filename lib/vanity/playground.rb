@@ -215,6 +215,17 @@ module Vanity
       metric(id).track! count
     end
 
+    # Choose a value for any experiment tagged with the specified event;
+    # filter can be used to specify a white-list for experiments.
+    def assign_on(event, filter=nil)
+      experiments.each do |id, obj|
+        if !filter || filter.include?(id)
+          if obj.assign_on?(event)
+            obj.choose
+          end
+        end
+      end
+    end
 
     # -- Connection management --
  
