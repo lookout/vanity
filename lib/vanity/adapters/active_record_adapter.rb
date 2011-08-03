@@ -294,6 +294,12 @@ module Vanity
         VanityParticipant.retrieve(experiment, identity, true, :seen => alternative)
       end
 
+      # Indicates which alternative has been picked for this participant. See #ab_add_participant.
+      def ab_chosen(experiment, identity)
+        participant = VanityParticipant.retrieve(experiment, identity, false)
+        participant && participant.seen
+      end
+
       # Records a conversion in this experiment for the given alternative.
       # Associates a value with the conversion (default to 1). If implicit is
       # true, add particpant if not already recorded for this experiment. If

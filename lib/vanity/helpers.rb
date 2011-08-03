@@ -50,6 +50,11 @@ module Vanity
       end
     end
 
+    # Check whether the specified experiment has had a value chosen yet
+    def ab_test_chosen?(id)
+      Vanity.playground.experiment(id).chosen?
+    end
+
     # Tracks an action associated with a metric.
     #
     # @example
