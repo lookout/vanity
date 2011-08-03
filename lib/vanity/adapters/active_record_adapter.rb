@@ -23,7 +23,7 @@ module Vanity
           # Migrate
           unless VanitySchema.find_by_version(1)
             connection.create_table :vanity_metrics do |t|
-              t.string :metric_id
+              t.string :metric_id   # name of the metric
               t.datetime :updated_at
             end
             connection.add_index :vanity_metrics, [:metric_id]
@@ -37,7 +37,7 @@ module Vanity
             connection.add_index :vanity_metric_values, [:vanity_metric_id]
 
             connection.create_table :vanity_experiments do |t|
-              t.string :experiment_id
+              t.string :experiment_id # name of the experiment
               t.integer :outcome
               t.datetime :created_at
               t.datetime :completed_at
@@ -45,27 +45,44 @@ module Vanity
             connection.add_index :vanity_experiments, [:experiment_id]
 
             connection.create_table :vanity_conversions do |t|
-              t.integer :vanity_experiment_id
+              t.references :vanity_experiment
               t.integer :alternative
               t.integer :conversions
             end
             connection.add_index :vanity_conversions, [:vanity_experiment_id, :alternative], :name => "by_experiment_id_and_alternative"
 
+            VanitySchema.create(:version => 1)
+          end
+
+          unless VanitySchema.find_by_version(2)
+            if connection.tables.include?('vanity_participants')
+              connection.drop_table :vanity_participants
+            end
+
             connection.create_table :vanity_participants do |t|
-              t.string :experiment_id
-              t.string :identity
+              t.references :vanity_experiment
+              t.integer :identity
               t.integer :shown
               t.integer :seen
               t.integer :converted
+              t.timestamps
             end
-            connection.add_index :vanity_participants, [:experiment_id]
-            connection.add_index :vanity_participants, [:experiment_id, :identity], :name => "by_experiment_id_and_identity"
-            connection.add_index :vanity_participants, [:experiment_id, :shown], :name => "by_experiment_id_and_shown"
-            connection.add_index :vanity_participants, [:experiment_id, :seen], :name => "by_experiment_id_and_seen"
-            connection.add_index :vanity_participants, [:experiment_id, :converted], :name => "by_experiment_id_and_converted"
+            connection.add_index :vanity_participants, [:vanity_experiment_id, :identity]
+            connection.add_index :vanity_participants, [:vanity_experiment_id, :shown]
+            connection.add_index :vanity_participants, [:vanity_experiment_id, :seen]
+            connection.add_index :vanity_participants, [:vanity_experiment_id, :converted]
 
-            VanitySchema.create(:version => 1)
+            VanitySchema.create(:version => 2)
           end
+        end
+
+        def self.drop_schema
+          connection.drop_table :vanity_schema
+          connection.drop_table :vanity_metrics
+          connection.drop_table :vanity_metric_values
+          connection.drop_table :vanity_experiments
+          connection.drop_table :vanity_conversions
+          connection.drop_table :vanity_participants
         end
       end
 
@@ -94,6 +111,7 @@ module Vanity
       class VanityExperiment < VanityRecord
         set_table_name :vanity_experiments
         has_many :vanity_conversions, :dependent => :destroy
+        has_many :vanity_participants
 
         # Finds or creates the experiment
         def self.retrieve(experiment)
@@ -115,6 +133,7 @@ module Vanity
       # Participant model
       class VanityParticipant < VanityRecord
         set_table_name :vanity_participants
+        belongs_to :vanity_experiment
 
         # Finds the participant by experiment and identity. If
         # create is true then it will create the participant
@@ -122,15 +141,17 @@ module Vanity
         # passed to create if creating, or will be used to
         # update the found participant.
         def self.retrieve(experiment, identity, create = true, update_with = nil)
-          record = VanityParticipant.first(
+          exp = VanityExperiment.retrieve(experiment)
+          raise RuntimeError, "no experiment found #{experiment}" unless exp
+          record = exp.vanity_participants.first(
                   :conditions =>
-                          {:experiment_id => experiment.to_s, :identity => identity.to_s})
+                          {:identity => identity})
 
           if record
             record.update_attributes(update_with) if update_with
           elsif create
             record = VanityParticipant.create(
-                    {:experiment_id => experiment.to_s,
+                    {:vanity_experiment_id => exp.id,
                      :identity => identity}.merge(update_with || {}))
           end
 
@@ -139,10 +160,11 @@ module Vanity
       end
 
       def initialize(options)
-        options[:adapter] = options[:active_record_adapter] if options[:active_record_adapter]
-
-        VanityRecord.establish_connection(options)
-        VanityRecord.define_schema
+        if options[:active_record_adapter] && (options[:active_record_adapter] != "default")
+          options[:adapter] = options[:active_record_adapter]
+          VanityRecord.establish_connection(options)
+        end
+        VanityRecord.define_schema unless options[:manual_migration]
       end
 
       def active?
@@ -238,8 +260,8 @@ module Vanity
       # :conversions.
       def ab_counts(experiment, alternative)
         record = VanityExperiment.retrieve(experiment)
-        participants = VanityParticipant.count(:conditions => {:experiment_id => experiment.to_s, :seen => alternative})
-        converted = VanityParticipant.count(:conditions => {:experiment_id => experiment.to_s, :converted => alternative})
+        participants = record.vanity_participants.count(:conditions => {:seen => alternative})
+        converted = record.vanity_participants.count(:conditions => {:converted => alternative})
         conversions = record.vanity_conversions.sum(:conversions, :conditions => {:alternative => alternative})
 
         {
@@ -295,9 +317,10 @@ module Vanity
 
       # Deletes all information about this experiment.
       def destroy_experiment(experiment)
-        VanityParticipant.delete_all(:experiment_id => experiment.to_s)
-        record = VanityExperiment.find_by_experiment_id(experiment.to_s)
-        record && record.destroy
+        if record = VanityExperiment.find_by_experiment_id(experiment.to_s)
+          record.vanity_participants.delete_all
+          record.destroy
+        end
       end
     end
   end
