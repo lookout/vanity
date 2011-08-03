@@ -21,4 +21,5 @@ group :test do
   gem "shoulda"
   gem "timecop"
   gem "webmock"
+  gem "ruby-debug"
 end
