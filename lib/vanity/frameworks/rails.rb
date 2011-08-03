@@ -57,6 +57,7 @@ module Vanity
             end
           end
         end
+        protected :vanity_identity
         around_filter :vanity_context_filter
         before_filter :vanity_reload_filter unless ::Rails.configuration.cache_classes
         before_filter :vanity_query_parameter_filter
@@ -143,6 +144,7 @@ module Vanity
       #   <% ab_test :features do |count| %>
       #     <%= count %> features to choose from!
       #   <% end %>
+      # FIXME: this appears to be duplicate code see ../helpers.rb
       def ab_test(name, &block)
         if Vanity.playground.using_js?
           @_vanity_experiments ||= {}
@@ -262,11 +264,7 @@ end
 if defined?(PhusionPassenger)
   PhusionPassenger.on_event(:starting_worker_process) do |forked|
     if forked
-      begin
-        Vanity.playground.establish_connection if Vanity.playground.collecting?
-      rescue Exception=>ex
-        Rails.logger.error "Error reconnecting: #{ex.to_s}"
-      end
+      Vanity.playground.establish_connection if Vanity.playground.collecting?
     end
   end
 end
