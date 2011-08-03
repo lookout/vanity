@@ -295,6 +295,14 @@ module Vanity
         end
       end
 
+      def assign_on(event)
+        @assign_event = event
+      end
+
+      def assign_on?(event)
+        @assign_event == event
+      end
+
       def test_percent(pct)
         raise RuntimeError, "Test percent must be an integer" unless pct.kind_of?(Integer)
         @test_pct = pct
