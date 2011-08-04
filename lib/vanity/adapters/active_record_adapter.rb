@@ -49,7 +49,7 @@ module Vanity
               t.integer :alternative
               t.integer :conversions
             end
-            connection.add_index :vanity_conversions, [:vanity_experiment_id, :alternative], :name => "by_experiment_id_and_alternative"
+            connection.add_index :vanity_conversions, [:vanity_experiment_id, :alternative]
 
             VanitySchema.create(:version => 1)
           end
