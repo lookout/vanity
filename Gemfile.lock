@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    vanity (1.6.0)
+    lookout-vanity (1.6.2)
       redis (~> 2.0)
       redis-namespace (~> 1.0.0)
 
@@ -90,6 +90,7 @@ DEPENDENCIES
   bson_ext
   garb
   jekyll
+  lookout-vanity!
   mocha
   mongo
   mysql
@@ -100,6 +101,5 @@ DEPENDENCIES
   ruby-debug
   shoulda
   timecop
-  vanity!
   webmock
   yard
