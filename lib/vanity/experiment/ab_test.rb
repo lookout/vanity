@@ -6,10 +6,11 @@ module Vanity
     # One of several alternatives in an A/B test (see AbTest#alternatives).
     class Alternative
 
-      def initialize(experiment, id, value) #, participants, converted, conversions)
+      def initialize(experiment, id, key, value) #, participants, converted, conversions)
         @experiment = experiment
         @id = id
         @name = "option #{(@id + 65).chr}"
+        @key = key
         @value = value
       end
 
@@ -18,6 +19,9 @@ module Vanity
      
       # Alternative name (option A, option B, etc).
       attr_reader :name
+
+      # Alternative key.
+      attr_reader :key
 
       # Alternative value.
       attr_reader :value
@@ -76,7 +80,7 @@ module Vanity
       end
 
       def inspect
-        "#{name}: #{value} #{converted}/#{participants}"
+        "#{name}: #{key} #{converted}/#{participants}"
       end
 
       def load_counts
@@ -155,22 +159,38 @@ module Vanity
         nil
       end
 
+      # Call this method to add complex values for alternatives, and use
+      # alternative values as keys to access them.
+      #
+      # @example Define A/B test with complex values
+      #   ab_test "Option type" do
+      #     metrics :coolness
+      #     alternatives "a", "b", "c"
+      #     values "a" => {:some => :data},
+      #       "b" => {:more => :data}, "c" => {:other => :data}
+      #   end
+      def values(data)
+        raise ArgumentError, "values should respond to []" unless data.respond_to?(:[])
+        @values = data.clone
+      end
+
       def _alternatives
         alts = []
-        @alternatives.each_with_index do |value, i|
-          alts << Alternative.new(self, i, value)
+        @alternatives.each_with_index do |key, i|
+          value = (@values[key] if @values) || key
+          alts << Alternative.new(self, i, key, value)
         end
         alts
       end
       private :_alternatives
 
-      # Returns an Alternative with the specified value.
+      # Returns an Alternative with the specified key.
       #
       # @example
       #   alternative(:red) == alternatives[0]
       #   alternative(:blue) == alternatives[2]
-      def alternative(value)
-        alternatives.find { |alt| alt.value == value }
+      def alternative(key)
+        alternatives.find { |alt| alt.key == key }
       end
 
       # Defines an A/B test with two alternatives: false and true.  This is the
@@ -248,18 +268,18 @@ module Vanity
       #   teardown do
       #     experiment(:green_button).select(nil)
       #   end
-      def chooses(value)
+      def chooses(key)
         if @playground.collecting?
-          if value.nil?
+          if key.nil?
             connection.ab_not_showing @id, identity
           else
-            index = @alternatives.index(value)
+            index = @alternatives.index(key)
             #add them to the experiment unless they are already in it
             unless index == connection.ab_showing(@id, identity)
               connection.ab_add_participant @id, index, identity
               check_completion!
             end
-            raise ArgumentError, "No alternative #{value.inspect} for #{name}" unless index
+            raise ArgumentError, "No alternative #{key.inspect} for #{name}" unless index
             if (connection.ab_showing(@id, identity) && connection.ab_showing(@id, identity) != index) || 
          alternative_for(identity) != index
               connection.ab_show @id, identity, index
@@ -267,7 +287,7 @@ module Vanity
           end
         else
           @showing ||= {}
-          @showing[identity] = value.nil? ? nil : @alternatives.index(value)
+          @showing[identity] = key.nil? ? nil : @alternatives.index(key)
         end
         self
       end
