@@ -39,6 +39,7 @@ module Vanity
       class VanityExperiment < VanityRecord
         set_table_name :vanity_experiments
         has_many :vanity_conversions, :dependent => :destroy
+        has_many :vanity_participants
 
         # Finds or creates the experiment
         def self.retrieve(experiment)
@@ -60,6 +61,7 @@ module Vanity
       # Participant model
       class VanityParticipant < VanityRecord
         set_table_name :vanity_participants
+        belongs_to :vanity_experiment
 
         # Finds the participant by experiment and identity. If
         # create is true then it will create the participant
@@ -67,10 +69,12 @@ module Vanity
         # passed to create if creating, or will be used to
         # update the found participant.
         def self.retrieve(experiment, identity, create = true, update_with = nil)
-          if record = VanityParticipant.first(:conditions=>{ :experiment_id=>experiment.to_s, :identity=>identity.to_s })
+          exp = VanityExperiment.retrieve(experiment)
+          raise "no experiment found #{experiment}" unless exp
+          if record = exp.vanity_participants.first(:conditions=>{ :identity=>identity })
             record.update_attributes(update_with) if update_with
           elsif create
-            record = VanityParticipant.create({ :experiment_id=>experiment.to_s, :identity=>identity }.merge(update_with || {}))
+            record = VanityParticipant.create({ :vanity_experiment_id=>exp.id, :identity=>identity }.merge(update_with || {}))
           end
           record
         end
@@ -177,8 +181,8 @@ module Vanity
       # :conversions.
       def ab_counts(experiment, alternative)
         record = VanityExperiment.retrieve(experiment)
-        participants = VanityParticipant.count(:conditions => {:experiment_id => experiment.to_s, :seen => alternative})
-        converted = VanityParticipant.count(:conditions => {:experiment_id => experiment.to_s, :converted => alternative})
+        participants = record.vanity_participants.count(:conditions => {:seen => alternative})
+        converted = record.vanity_participants.count(:conditions => {:converted => alternative})
         conversions = record.vanity_conversions.sum(:conversions, :conditions => {:alternative => alternative})
 
         {
@@ -234,9 +238,10 @@ module Vanity
 
       # Deletes all information about this experiment.
       def destroy_experiment(experiment)
-        VanityParticipant.delete_all(:experiment_id => experiment.to_s)
-        record = VanityExperiment.find_by_experiment_id(experiment.to_s)
-        record && record.destroy
+        if record = VanityExperiment.find_by_experiment_id(experiment.to_s)
+          record.vanity_participants.delete_all
+          record.destroy
+        end
       end
 
       def to_s
