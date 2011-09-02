@@ -35,6 +35,7 @@ class VanityMigration < ActiveRecord::Migration
       t.integer :shown
       t.integer :seen
       t.integer :converted
+      t.timestamps
     end
     add_index :vanity_participants, [:vanity_experiment_id, :identity], :name => "by_experiment_id_and_identity"
     add_index :vanity_participants, [:vanity_experiment_id, :shown], :name => "by_experiment_id_and_shown"
@@ -44,9 +45,9 @@ class VanityMigration < ActiveRecord::Migration
 
   def self.down
     drop_table :vanity_metrics
-    drop_table :vanity_metric_values 
-    drop_table :vanity_experiments 
-    drop_table :vanity_conversions 
-    drop_table :vanity_participants 
+    drop_table :vanity_metric_values
+    drop_table :vanity_experiments
+    drop_table :vanity_conversions
+    drop_table :vanity_participants
   end
 end
