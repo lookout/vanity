@@ -145,6 +145,10 @@ module Vanity
       #   puts "#{alts.count} alternatives, with the colors: #{alts.map(&:value).join(", ")}"
       def alternatives(*args)
         @alternatives = args.empty? ? [true, false] : args.clone
+        if @control
+          @alternatives.delete(@control)
+          @alternatives.push(@control) # move to end
+        end
         class << self
           define_method :alternatives, instance_method(:_alternatives)
         end
@@ -288,6 +292,24 @@ module Vanity
                   # TODO: implement ab_chosen on all vanity adapters!!
         else
           @showing && @showing[identity()]
+        end
+      end
+
+      def test_percent(pct)
+        raise RuntimeError, "Test percent must be an integer" unless pct.kind_of?(Integer)
+        @test_pct = pct
+      end
+
+      def control_percent(pct)
+        raise RuntimeError, "Control percent must be an integer" unless pct.kind_of?(Integer)
+        test_percent(100-pct)
+      end
+
+      def control_value(value)
+        @control = value
+        if @alternatives
+          @alternatives.delete(@control)
+          @alternatives.push(@control) # move to end
         end
       end
 
@@ -490,8 +512,23 @@ module Vanity
       # identity, and randomly distributed alternatives for each identity (in the
       # same experiment).
       def alternative_for(identity)
-        Digest::MD5.hexdigest("#{name}/#{identity}").to_i(17) % @alternatives.size
+        id_hash = Digest::MD5.hexdigest("#{name}/#{identity}").to_i(16)
+        return hash_to_alternative(id_hash)
       end
+
+      def hash_to_alternative(id_hash)
+        alternatives_count = @alternatives.size
+        if @test_pct
+          if (id_hash % 100 >= @test_pct)
+            return alternatives_count-1 #@control
+          else
+            id_hash = id_hash / 100
+            alternatives_count -= 1
+          end
+        end
+        return id_hash % alternatives_count
+      end
+
 
       begin
         a = 50.0
