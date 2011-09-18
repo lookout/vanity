@@ -147,10 +147,14 @@ module Vanity
 
       # Store when experiment was created (do not write over existing value).
       def set_experiment_created_at(experiment, time)
-        record = VanityExperiment.find_by_experiment_id(experiment.to_s) ||
-                VanityExperiment.new(:experiment_id => experiment.to_s)
-        record.created_at ||= time
-        record.save
+        begin
+          record = VanityExperiment.find_by_experiment_id(experiment.to_s) ||
+                  VanityExperiment.new(:experiment_id => experiment.to_s)
+          record.created_at ||= time
+          record.save
+        rescue Exception => e
+          puts "Make sure Vanity migrations have been run, ignoring #{e}"
+        end
       end
 
       # Return when experiment was created.
