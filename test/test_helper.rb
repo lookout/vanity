@@ -7,6 +7,7 @@ ENV["DB"] ||= "redis"
 RAILS_ROOT = File.expand_path("..")
 require "test/unit"
 require "mocha"
+require "shoulda"
 require "action_controller"
 require "action_controller/test_case"
 require "action_view/test_case"

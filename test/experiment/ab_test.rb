@@ -204,6 +204,90 @@ class AbTestTest < ActionController::TestCase
     assert_equal 100, alts.map(&:converted).sum
   end
 
+  TEST_SIZE = 10000
+
+  def self.should_choose_correct_proportions(delta=1, test_pct=100, control=nil)
+    should "choose correct proportions" do
+      assert_equal TEST_SIZE*(100-test_pct)/100, @results.count(control) if control
+      expected_size = @alternatives.size + (test_pct == 100 || @alternatives.include?(control) ? 0 : 1)
+      assert_equal expected_size, @experiment.alternatives.size
+      @alternatives.delete(control)
+      @alternatives.each do |alt|
+        assert_in_delta TEST_SIZE*test_pct/100/@alternatives.size, @results.count(alt), delta
+      end
+    end
+  end
+
+  def run_test(experiment)
+    (0..TEST_SIZE-1).collect do |hash|
+      index = experiment.send(:hash_to_alternative, hash) # access protected method
+      experiment.alternatives[index].value
+    end
+  end
+
+  context "An experiment with three alternatives" do
+    setup do
+      @experiment = Vanity::Experiment::AbTest.new(Vanity.playground, :test, "test")
+      @alternatives = [1, 2, 3]
+      @experiment.alternatives(*@alternatives)
+    end
+
+    context "with an out-of-set control value" do
+      setup do
+        @experiment.control_value(222)
+        @experiment.test_percent(15)
+        @results = run_test(@experiment)
+      end
+
+      should_choose_correct_proportions(TEST_SIZE/500, 15, 222)
+    end
+
+    context "with an in-set control value" do
+      setup do
+        @experiment.control_value(3)
+        @experiment.test_percent(10)
+        @results = run_test(@experiment)
+      end
+
+      should_choose_correct_proportions(TEST_SIZE/500, 10, 3)
+    end
+
+    context "with no control value" do
+      setup do
+        @results = run_test(@experiment)
+      end
+
+      should_choose_correct_proportions
+    end
+  end
+
+  context "An experiment setting alternatives after control value" do
+    setup do
+      @experiment = Vanity::Experiment::AbTest.new(Vanity.playground, :test, "test")
+      @experiment.test_percent(25)
+      @alternatives = [1, 2, 3]
+    end
+
+    context "with an out-of-set control value" do
+      setup do
+        @experiment.control_value(22)
+        @experiment.alternatives(*@alternatives)
+        @results = run_test(@experiment)
+      end
+
+      should_choose_correct_proportions(TEST_SIZE/500, 25, 22)
+    end
+
+    context "with an in-set control value" do
+      setup do
+        @experiment.control_value(3)
+        @experiment.alternatives(*@alternatives)
+        @results = run_test(@experiment)
+      end
+
+      should_choose_correct_proportions(TEST_SIZE/500, 25, 3)
+    end
+  end
 
   def test_destroy_experiment
     new_ab_test :simple do
