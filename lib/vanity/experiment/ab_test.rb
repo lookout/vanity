@@ -149,9 +149,8 @@ module Vanity
       #   puts "#{alts.count} alternatives, with the colors: #{alts.map(&:value).join(", ")}"
       def alternatives(*args)
         @alternatives = args.empty? ? [true, false] : args.clone
-        if @control
-          @alternatives.delete(@control)
-          @alternatives.push(@control) # move to end
+        if @control && !@alternatives.include?(@control)
+          @alternatives.push(@control) # add to end
         end
         class << self
           define_method :alternatives, instance_method(:_alternatives)
@@ -335,9 +334,8 @@ module Vanity
 
       def control_value(value)
         @control = value
-        if @alternatives
-          @alternatives.delete(@control)
-          @alternatives.push(@control) # move to end
+        if @alternatives && !@alternatives.include?(@control)
+          @alternatives.push(@control) # add to end
         end
       end
 
@@ -545,16 +543,16 @@ module Vanity
       end
 
       def hash_to_alternative(id_hash)
-        alternatives_count = @alternatives.size
-        if @test_pct
+        alternatives = *(0..(@alternatives.size - 1))
+        if @test_pct && @control
           if (id_hash % 100 >= @test_pct)
-            return alternatives_count-1 #@control
+            return @alternatives.index(@control)
           else
             id_hash = id_hash / 100
-            alternatives_count -= 1
+            alternatives.delete(@alternatives.index(@control))
           end
         end
-        return id_hash % alternatives_count
+        return alternatives[id_hash % alternatives.count]
       end
 
 
