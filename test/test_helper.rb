@@ -6,6 +6,7 @@ ENV["DB"] ||= "redis"
 
 require "test/unit"
 require "mocha"
+require "shoulda"
 require "action_controller"
 require "action_controller/test_case"
 require "action_view/test_case"
