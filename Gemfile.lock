@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    lookout-vanity (1.8.1)
+    lookout-vanity (1.8.2)
       redis (~> 2.0)
       redis-namespace (~> 1.0.0)
 

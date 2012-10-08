@@ -3,29 +3,7 @@ require 'appraisal'
 
 # -- Building stuff --
 
-spec = Gem::Specification.load(Dir["*.gemspec"].first)
-
-desc "Build the Gem"
-task :build do
-  sh "gem build #{spec.name}.gemspec"
-end
-
-desc "Install #{spec.name} locally"
-task :install=>:build do
-  sudo = "sudo" unless File.writable?( Gem::ConfigMap[:bindir])
-  sh "#{sudo} gem install #{spec.name}-#{spec.version}.gem"
-end
-
-desc "Push new release to gemcutter and git tag"
-task :push=>["test:all", "build"] do
-  sh "git push"
-  puts "Tagging version #{spec.version} .."
-  sh "git tag v#{spec.version}"
-  sh "git push --tag"
-  puts "Building and pushing gem .."
-  sh "gem push #{spec.name}-#{spec.version}.gem"
-end
-
+require "bundler/gem_tasks"
 
 # -- Testing stuff --
 
@@ -106,6 +84,7 @@ task(:clobber) { rm_rf "tmp" }
 
 begin
   require "yard"
+  spec = Gem::Specification.load(Dir["*.gemspec"].first)
   YARD::Rake::YardocTask.new(:yardoc) do |task|
     task.files  = FileList["lib/**/*.rb"].exclude("lib/vanity/backport.rb")
     task.options = "--output", "html/api", "--title", "Vanity #{spec.version}", "--main", "README.rdoc", "--files", "CHANGELOG"
